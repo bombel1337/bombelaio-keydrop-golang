@@ -7,33 +7,48 @@ import (
 	"net/http"
 	"bytes"
 	"bombelaio-keydrop-golang/models"	
+	"github.com/sirupsen/logrus"
 	"io"
 	"strconv"
+	"strings"
+	"net/url"
 )
 
-func gettingCaptchaCapmonster(giveawayID string) (string, error) {
-    jsonStr := []byte(fmt.Sprintf(`{
-        "clientKey": "%v",
-        "task": {
-            "type": "NoCaptchaTaskProxyless",
-            "websiteURL": "https://key-drop.com/giveaways/keydrop/%s",
-            "websiteKey": "6Ld2uggaAAAAAG9YRZYZkIhCdS38FZYpY9RRYkwN"
-        }
-    }`,CaptchaKey, giveawayID))
+func gettingCaptchaCapmonster(giveawayID string, user Users, index int) (string, error) {
+	userNumber := fmt.Sprintf("%03d", index)
 
-	req, err := http.NewRequest("POST", "https://api.capmonster.cloud/createTask", bytes.NewBuffer(jsonStr))
+	var client *http.Client
+	var proxyURL string = user.ProxyURL
+	if !proxyLess {
+		urlProxy, err := url.Parse(proxyURL)
+		if err != nil {
+			Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%s] Error parsing proxy joingiveaway: %v.",userNumber, err))
+			return "err", err
+		}
+		client = &http.Client {
+			Transport: &http.Transport{
+				Proxy: http.ProxyURL(urlProxy),
+			},
+		}
+	} else {
+		client = &http.Client{}
+	}
+	data := strings.NewReader(fmt.Sprintf(`{"clientKey": "%s", "task": {"type": "RecaptchaV2EnterpriseTaskProxyless", "websiteURL": "https://key-drop.com/pl/giveaways/keydrop/%s", "websiteKey": "6Ld2uggaAAAAAG9YRZYZkIhCdS38FZYpY9RRYkwN"}}`, CaptchaKey, giveawayID))
+	req, err := http.NewRequest("POST", "https://api.capmonster.cloud/createTask", data)
     if err != nil {
+		fmt.Println("watafak")
         return "err", err
     }
+	
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36 OPR/97.0.0.0")
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
 	req.Header.Set("Accept-Language", "pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7")
 	req.Header.Set("Upgrade-Insecure-Requests", "1")
 
-	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
+		fmt.Println("watafak2")
         return "err", err
 	}
 	defer resp.Body.Close()
@@ -42,6 +57,8 @@ func gettingCaptchaCapmonster(giveawayID string) (string, error) {
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
+			fmt.Println("watafak3")
+
 			return "err", err
 		}
 

@@ -29,6 +29,7 @@ func init() {
 		utils.CaptchaKey = txtfile[0]
 	} else if  len(txtfile) == 2 {
 		utils.IsWebhookEnabled = true
+		utils.CaptchaKey = txtfile[0]
 		utils.DiscordWebhook = txtfile[1]
 	} else {
 		utils.Log(utils.Logger, logrus.ErrorLevel, "Wrong data in txt file.")

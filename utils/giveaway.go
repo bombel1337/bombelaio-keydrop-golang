@@ -9,7 +9,7 @@ import (
 	"io"
 	"time"
 	"net/http"
-	 "net/url"
+	"net/url"
     "strings"
 )
 
@@ -204,12 +204,12 @@ func joinGiveaway(cookiesData string, raffleType string, giveawayID string, bear
 	}
 	var payload io.Reader
 	if iscaptcha {
-		solution, err := gettingCaptchaCapmonster(giveawayID)
+		solution, err := gettingCaptchaCapmonster(giveawayID, user, index)
 		if err != nil {
 			Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%s] Error getting solution: %v.",userNumber, err))
 			return
 		}
-		Sleep(5000)
+		Sleep(1000)
 		payload = strings.NewReader(fmt.Sprintf(`{"captcha":"%v"}`, solution))
 	} else {
 		payload = nil
@@ -258,7 +258,7 @@ func joinGiveaway(cookiesData string, raffleType string, giveawayID string, bear
 		} else if !joinGiveawayStruct.Success && joinGiveawayStruct.Message == "captcha" {
 			Log(Logger, logrus.InfoLevel,  fmt.Sprintf("[%v] User: %s, has a captcha, getting token!",userNumber, user.Name))
 
-			Sleep(5000)
+			Sleep(2500)
 			joinGiveaway(cookiesData, raffleType, giveawayID, bearerToken, user, true, index)
 		} else {
 			Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%v] User: %s, unfortunately has got an error while joining! Error: %v",userNumber, user.Name, joinGiveawayStruct.Message))
@@ -308,14 +308,17 @@ func readWinners(giveawayID string, raffleType string) {
 		for index, x := range winnerCheckersStruct.Data.Winners {
 			for _, user := range users["usernames"] {
 				if x.Userdata.IDSteam == user.SteamID {
-					sendDiscordWebhook(user, winnerCheckersStruct.Data.Prizes[index], giveawayID)
+					if IsWebhookEnabled {
+						sendDiscordWebhook(user, winnerCheckersStruct.Data.Prizes[index], giveawayID)
+					}
+
 					UpdateUserWins(user.Name)
 				}
 			}
 		}
 	
 	} else {
-		Sleep(5000)
+		Sleep(15000)
 		readWinners(giveawayID, raffleType)
 	}
 

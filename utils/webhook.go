@@ -12,8 +12,6 @@ import (
 
 func sendDiscordWebhook(user Users, prize models.PrizesWinner, giveawayId string) {
 	// Replace this with your webhook URL
-	fmt.Println(user)
-	fmt.Println(prize)
 	// Create the message payload
 	payload := map[string]interface{}{
 		"embeds": []map[string]interface{}{
