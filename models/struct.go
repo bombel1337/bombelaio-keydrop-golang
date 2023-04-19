@@ -5,8 +5,10 @@ package models
 
 type GettingLoggedInStruct struct {
 	UserName string `json:"userName"`
+	Status  bool   `json:"status"`
 	SteamID  string `json:"steamId"`
 	Avatar   string `json:"avatar"`
+	Message string `json:"message"`
 }
 
 
@@ -135,4 +137,31 @@ type PrizesWinner struct {
 		Condition  string  `json:"condition"`
 		WeaponType string  `json:"weaponType"`
 		Currency   string  `json:"currency"`
+}
+
+type FreeCaseStruct struct {
+	Status     bool `json:"status"`
+	Error  string `json:"error"`
+	WinnerData struct {
+		ID         string `json:"id"`
+		Type       string `json:"type"`
+		PrizeValue struct {
+			ProductID int         `json:"productID"`
+			Title     string      `json:"title"`
+			Subtitle  string      `json:"subtitle"`
+			Condition interface{} `json:"condition"`
+			Price     float64     `json:"price"`
+			Icon      string      `json:"icon"`
+		} `json:"prizeValue"`
+	} `json:"winnerData"`
+	OtherItems []struct {
+		PrizeType  string `json:"prizeType"`
+		PrizeValue struct {
+			Title     string      `json:"title"`
+			Subtitle  interface{} `json:"subtitle"`
+			Condition interface{} `json:"condition"`
+			Price     float64     `json:"price"`
+			Icon      string      `json:"icon"`
+		} `json:"prizeValue"`
+	} `json:"otherItems"`
 }

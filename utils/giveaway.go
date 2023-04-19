@@ -6,9 +6,11 @@ import (
 	"github.com/mattn/go-colorable"
 	"encoding/json"
 	"fmt"
+	//"bytes"
 	"io"
 	"time"
 	"net/http"
+	//"mime/multipart"
 	"net/url"
     "strings"
 )
@@ -68,31 +70,112 @@ func GettingLoggedIn(cookiesData string, raffleType string , integerUser int) {
 		if err != nil {
 			Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%s] Error: %v.", userNumber ,err))
 		}
-
-		if !proxyLess {
-			AddUserToArray("usernames", Users{Name: loggedInStruct.UserName, SteamID: loggedInStruct.SteamID, Avatar: loggedInStruct.Avatar, Tries: 1, ProxyURL: proxyURL, Cookies: cookiesData})
+		
+		if len(loggedInStruct.Avatar) != 0 {
+			if !proxyLess {
+				AddUserToArray("usernames", Users{Name: loggedInStruct.UserName, SteamID: loggedInStruct.SteamID, Avatar: loggedInStruct.Avatar, Tries: 1, ProxyURL: proxyURL, Cookies: cookiesData})
+			} else {
+				AddUserToArray("usernames", Users{Name: loggedInStruct.UserName, SteamID: loggedInStruct.SteamID, Avatar: loggedInStruct.Avatar, Tries: 1, Cookies: cookiesData})
+			}
+			Log(Logger, logrus.InfoLevel,  fmt.Sprintf("[%s] Successfuly restored session for task.", userNumber))
 		} else {
-			AddUserToArray("usernames", Users{Name: loggedInStruct.UserName, SteamID: loggedInStruct.SteamID, Avatar: loggedInStruct.Avatar, Tries: 1, Cookies: cookiesData})
+			Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%s] Request, logged error: %v", userNumber, loggedInStruct.Message ))
 		}
-		Log(Logger, logrus.InfoLevel,  fmt.Sprintf("[%s] Successfuly restored session for task.", userNumber))
+
 	} else {
 		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%s] Request, logged error: %v", userNumber, resp.StatusCode))
 	}
 }
 
+// func openFreeChest(index int, cookiesData string){
+// 	userNumber := fmt.Sprintf("%03d", index)
+// 	client := &http.Client{}
+//     body := &bytes.Buffer{}
+//     writer := multipart.NewWriter(body)
+// 	writer.WriteField("level", "0")
+// 	writer.Close()
+// 	req, err := http.NewRequest("POST", "https://key-drop.com/pl/apiData/DailyFree/open", body)
+// 	if err != nil {
+// 		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error opening free chest: %v.", err))
+// 		Sleep(2500)
+// 		openFreeChest(index, cookiesData)
+// 		return
+// 	}
+// 	req.Header.Set("authority", "key-drop.com")
+// 	req.Header.Set("accept", "*/*")
+// 	req.Header.Set("accept-language", "pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7")
+// 	req.Header.Set("cookie", cookiesData)
+// 	req.Header.Set("dnt", "1")
+// 	req.Header.Set("origin", "https://key-drop.com")
+// 	req.Header.Set("referer", "https://key-drop.com/pl/daily-case")
+// 	req.Header.Set("sec-ch-ua", `"Chromium";v="112", "Google Chrome";v="112", "Not:A-Brand";v="99"`)
+// 	req.Header.Set("sec-ch-ua-mobile", "?0")
+// 	req.Header.Set("sec-ch-ua-platform", `"Windows"`)
+// 	req.Header.Set("sec-fetch-dest", "empty")
+// 	req.Header.Set("sec-fetch-mode", "cors")
+// 	req.Header.Set("sec-fetch-site", "same-origin")
+// 	req.Header.Set("user-agent", "Mozilla/5.0 (Linux; Android 7.1; vivo 1716 Build/N2G47H) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.98 Mobile Safari/537.36")
+
+// 	resp, err := client.Do(req)
+// 	if err != nil {
+// 		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error opening free chest: %v.", err))
+// 		openFreeChest(index, cookiesData)
+// 		return
+// 	}
+// 	defer resp.Body.Close()
+// fmt.Println(resp.StatusCode)
+
+// 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+// 		bodyBytes, err := io.ReadAll(resp.Body)
+// 		if err != nil {
+// 			Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%v] Error opening free chest: %v.",userNumber, err))
+// 			openFreeChest(index, cookiesData)
+// 			return
+// 		}
+// 		var freeCaseStruct models.FreeCaseStruct
+// 		err = json.Unmarshal(bodyBytes, &freeCaseStruct)
+// 		if err != nil {
+// 			Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%v] Error opening free chest: %v.",userNumber, err))
+// 			openFreeChest(index, cookiesData)
+// 			return
+// 		}
+
+// 		if freeCaseStruct.Status {
+// 			Log(Logger, logrus.InfoLevel,  fmt.Sprintf("[%v] Opened free chest: %v , %v",userNumber,freeCaseStruct.WinnerData.PrizeValue.Title, freeCaseStruct.WinnerData.PrizeValue.Subtitle))
+// 			Sleep(1000 * 60 * 60)
+// 			openFreeChest(index, cookiesData)
+// 		} else {
+// 			Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%v] Can't open free case yet: %v",userNumber,freeCaseStruct.Error))
+// 			Sleep(1000 * 60 * 60)
+// 			openFreeChest(index, cookiesData)
+// 		}
+
+// 	} else if resp.StatusCode >= 500 {
+// 		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%v] Error opening free chest: %v.",userNumber,resp.StatusCode))
+// 		openFreeChest(index, cookiesData)
+// 		return
+// 	}
+// }
+
+
 func monitoringGiveaway(raffleType string) {
+		var retriesInteger int = 0
 		prevGiveawayID := ""
 		for {
 			client := &http.Client{}
 			req, err := http.NewRequest("GET", "https://ws-2061.key-drop.com/v1/giveaway//list?type=active&page=0&perPage=5&status=active&sort=latest", nil)
 			if err != nil {
 				Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error: %v.", err))
+				monitoringGiveaway(raffleType)
+				return
 			}
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("user-agent", "Mozilla/5.0 (Linux; Android 7.1; vivo 1716 Build/N2G47H) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.98 Mobile Safari/537.36")
 			resp, err := client.Do(req)
 			if err != nil {
 				Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error: %v.", err))
+				monitoringGiveaway(raffleType)
+				return
 			}
 			
 
@@ -100,21 +183,27 @@ func monitoringGiveaway(raffleType string) {
 				bodyBytes, err := io.ReadAll(resp.Body)
 				if err != nil {
 					Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error: %v.", err))
+					monitoringGiveaway(raffleType)
+					return
 				}
 
 				var giveawayStruct models.MonitoringGiveawayStruct
 				err = json.Unmarshal(bodyBytes, &giveawayStruct)
 				if err != nil {
 					Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error: %v.", err))
+					monitoringGiveaway(raffleType)
+					return
 				}
 
 				for i := 0; i < len(giveawayStruct.Data); i++ {
 					if giveawayStruct.Data[i].Frequency == raffleType && prevGiveawayID != giveawayStruct.Data[i].ID {
 						Log(Logger, logrus.WarnLevel,  fmt.Sprintf("Found new giveaway: %s, sending tasks!", giveawayStruct.Data[i].ID))
 						for index, user := range users["usernames"] {							
-							go gettingBearer(raffleType, giveawayStruct.Data[i].ID, user, index)
+							go gettingBearer(raffleType, giveawayStruct.Data[i].ID, user, index, retriesInteger)
 							if err != nil {
 								Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error: %v.", err))
+								monitoringGiveaway(raffleType)
+								return
 							}
 							
 						}
@@ -134,7 +223,7 @@ func monitoringGiveaway(raffleType string) {
 		}
 }
 
-func gettingBearer(raffleType string, giveawayID string, user Users, index int)  {
+func gettingBearer(raffleType string, giveawayID string, user Users, index int, retriesInteger int)  {
 	userNumber := fmt.Sprintf("%03d", index)
 	var cookiesData string = user.Cookies
 	var client *http.Client
@@ -176,14 +265,22 @@ func gettingBearer(raffleType string, giveawayID string, user Users, index int) 
 			Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%s] Error reading bearer body: %v.",userNumber, err))
 			return
 		}
-		joinGiveaway(cookiesData, raffleType, giveawayID, string(body), user, false, index)
-	} else {
-		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%s] Error getting bearer: %v.", userNumber ,err))
+		retriesInteger = 1
+		joinGiveaway(cookiesData, raffleType, giveawayID, string(body), user, false, index, retriesInteger)
+	} else if resp.StatusCode >= 500 {
+		if retriesInteger<=3 {
+			Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%s] Error getting bearer, retrying: %v. Retry number: %v", userNumber , resp.StatusCode, retriesInteger))
+			Sleep(500)
+			gettingBearer(raffleType, giveawayID, user, index, retriesInteger)
+			retriesInteger++
+		} else {
+			Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%s] Error getting bearer, max tries: %v.", userNumber ,resp.StatusCode))
+		}
 
 	}
 }
 
-func joinGiveaway(cookiesData string, raffleType string, giveawayID string, bearerToken string ,user Users, iscaptcha bool, index int) {
+func joinGiveaway(cookiesData string, raffleType string, giveawayID string, bearerToken string ,user Users, iscaptcha bool, index int, retriesInteger int) {
 	userNumber := fmt.Sprintf("%03d", index)
 
 	var client *http.Client
@@ -259,14 +356,20 @@ func joinGiveaway(cookiesData string, raffleType string, giveawayID string, bear
 			Log(Logger, logrus.InfoLevel,  fmt.Sprintf("[%v] User: %s, has a captcha, getting token!",userNumber, user.Name))
 
 			Sleep(2500)
-			joinGiveaway(cookiesData, raffleType, giveawayID, bearerToken, user, true, index)
+			joinGiveaway(cookiesData, raffleType, giveawayID, bearerToken, user, true, index, retriesInteger)
 		} else {
 			Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%v] User: %s, unfortunately has got an error while joining! Error: %v",userNumber, user.Name, joinGiveawayStruct.Message))
-
 		}
 
-	} else {
-		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%s] Error joing giveaway: %v.", userNumber , resp.StatusCode))
+	} else if resp.StatusCode >= 500 {
+		if retriesInteger <= 3 {
+			Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%s] Error joining giveaway, retrying: %v. Retry number: %v", userNumber , resp.StatusCode, retriesInteger))
+			Sleep(500)
+			joinGiveaway(cookiesData, raffleType, giveawayID, bearerToken ,user, iscaptcha, index, retriesInteger)
+			retriesInteger++
+		} else {
+			Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%s] Error joining giveaway, reached max retries: %v.", userNumber ,resp.StatusCode))
+		}
 
 	}
 }
@@ -323,3 +426,5 @@ func readWinners(giveawayID string, raffleType string) {
 	}
 
 }
+
+

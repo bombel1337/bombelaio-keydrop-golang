@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bombelaio-keydrop-golang/models"
+	"github.com/sirupsen/logrus"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -66,7 +67,10 @@ func sendDiscordWebhook(user Users, prize models.PrizesWinner, giveawayId string
 	if err != nil {
 		panic(err)
 	}
-
-	// Print the response status code
-	fmt.Println(resp.StatusCode)
+	if resp.StatusCode > 400 && resp.StatusCode < 500 {
+		Sleep(10000)
+		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error sending webhook: %v", resp.StatusCode))
+		sendDiscordWebhook(user, prize, giveawayId)
+	}
+	
 }
