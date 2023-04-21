@@ -133,6 +133,7 @@ func ReadDataCsv(raffleType string) {
 		go func(row []string, i int) {
 			defer wg.Done()
 			GettingLoggedIn(row[1], raffleType, i)
+			Sleep(250)
 		}(rows[i], i)
 	}
 	wg.Wait()

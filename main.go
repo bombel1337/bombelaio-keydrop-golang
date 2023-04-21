@@ -40,6 +40,7 @@ func main() {
 	var Option string
 	var Raffletype string
 
+
 	err := utils.EnsureDataFile()
 	if err != nil {
 		utils.Log(utils.Logger, logrus.WarnLevel,fmt.Sprintf("Error: %v", err))

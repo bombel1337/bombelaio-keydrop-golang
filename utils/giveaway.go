@@ -1,18 +1,22 @@
 package utils
 
 import (
-	"bombelaio-keydrop-golang/models"
-	"github.com/sirupsen/logrus"
-	"github.com/mattn/go-colorable"
-	"encoding/json"
 	"fmt"
-	//"bytes"
+	"encoding/json"
 	"io"
 	"time"
-	"net/http"
-	//"mime/multipart"
-	"net/url"
-    "strings"
+	// "net/url"
+	// "bytes"
+	"strings"
+	"log"
+    "math/rand"
+	
+	"bombelaio-keydrop-golang/models"
+
+	"github.com/mattn/go-colorable"
+	"github.com/sirupsen/logrus"
+	http "github.com/bogdanfinn/fhttp"
+	tls_client "github.com/bogdanfinn/tls-client"
 )
 
 func init() {
@@ -24,37 +28,41 @@ func init() {
 
 func GettingLoggedIn(cookiesData string, raffleType string , integerUser int) {
 	userNumber := fmt.Sprintf("%03d", integerUser)
-
-	var client *http.Client
-	var proxyURL string 
+	var proxyURL string
+	var options []tls_client.HttpClientOption = []tls_client.HttpClientOption{
+		tls_client.WithTimeoutSeconds(30),
+		tls_client.WithClientProfile(tls_client.Chrome_108),
+	}
+	
 	if !proxyLess {
 		var randomProxy = proxyList[integerUser - 1]
 		proxyArr := strings.Split(randomProxy, ":")
 		proxyURL = fmt.Sprintf("http://%s:%s@%s:%s", proxyArr[2], proxyArr[3], proxyArr[0], proxyArr[1])
-		urlProxy, err := url.Parse(proxyURL)
-		if err != nil {
-			Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error: %s.", err))
-		}
+		options = append(options, tls_client.WithProxyUrl(proxyURL))
+	} 
 
-		client = &http.Client {
-			Transport: &http.Transport{
-				Proxy: http.ProxyURL(urlProxy),
-			},
-		}
-	} else {
-		client = &http.Client{}
-	}
 
-	req, err := http.NewRequest("GET", "https://key-drop.com/apiData/Init/index", nil)
+	client, err := tls_client.NewHttpClient(tls_client.NewNoopLogger(), options...)
 	if err != nil {
 		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%s] Error: %v.", userNumber ,err))
+		return
 	}
-    req.Header.Set("cookie", cookiesData)
-    req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("user-agent", "Mozilla/5.0 (Linux; Android 7.1; vivo 1716 Build/N2G47H) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.98 Mobile Safari/537.36")
+
+	req, err := http.NewRequest(http.MethodGet, "https://key-drop.com/pl/apiData/Init/index", nil)
+	if err != nil {
+		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%s] Error: %v.", userNumber ,err))
+		return
+	}
+
+	req.Header = http.Header{
+		"cookie" : {cookiesData},
+		"user-agent": {"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36"},
+	}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%s] Error: %v.", userNumber ,err))
+		return
 	}
 	defer resp.Body.Close()
 	
@@ -63,12 +71,14 @@ func GettingLoggedIn(cookiesData string, raffleType string , integerUser int) {
         bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
 			Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%s] Error: %v.", userNumber ,err))
+			return
 		}
 
 		var loggedInStruct models.GettingLoggedInStruct
 		err = json.Unmarshal(bodyBytes, &loggedInStruct)
 		if err != nil {
 			Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%s] Error: %v.", userNumber ,err))
+			return
 		}
 		
 		if len(loggedInStruct.Avatar) != 0 {
@@ -84,93 +94,128 @@ func GettingLoggedIn(cookiesData string, raffleType string , integerUser int) {
 
 	} else {
 		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%s] Request, logged error: %v", userNumber, resp.StatusCode))
+		Sleep(5000)
+		GettingLoggedIn(cookiesData, raffleType, integerUser)
+		
 	}
 }
 
-// func openFreeChest(index int, cookiesData string){
+// func openFreeChest(index int, user Users){
 // 	userNumber := fmt.Sprintf("%03d", index)
-// 	client := &http.Client{}
-//     body := &bytes.Buffer{}
-//     writer := multipart.NewWriter(body)
-// 	writer.WriteField("level", "0")
-// 	writer.Close()
-// 	req, err := http.NewRequest("POST", "https://key-drop.com/pl/apiData/DailyFree/open", body)
+// 	postData := url.Values{}
+// 	postData.Add("level", "0")
+// 	var options []tls_client.HttpClientOption = []tls_client.HttpClientOption{
+// 		tls_client.WithTimeoutSeconds(30),
+// 		tls_client.WithClientProfile(tls_client.Chrome_108),
+// 	}
+	
+// 	if !proxyLess {
+// 		options = append(options, tls_client.WithProxyUrl(user.ProxyURL))
+// 	} 
+
+
+// 	client, err := tls_client.NewHttpClient(tls_client.NewNoopLogger(), options...)
 // 	if err != nil {
-// 		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error opening free chest: %v.", err))
-// 		Sleep(2500)
-// 		openFreeChest(index, cookiesData)
+// 		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%s] Error: %v.", userNumber ,err))
+// 	}
+
+
+// 	req, err := http.NewRequest(http.MethodPost, "https://key-drop.com/pl/apiData/DailyFree/open", strings.NewReader(postData.Encode()))
+// 	if err != nil {
+// 		log.Println(err)
 // 		return
 // 	}
-// 	req.Header.Set("authority", "key-drop.com")
-// 	req.Header.Set("accept", "*/*")
-// 	req.Header.Set("accept-language", "pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7")
-// 	req.Header.Set("cookie", cookiesData)
-// 	req.Header.Set("dnt", "1")
-// 	req.Header.Set("origin", "https://key-drop.com")
-// 	req.Header.Set("referer", "https://key-drop.com/pl/daily-case")
-// 	req.Header.Set("sec-ch-ua", `"Chromium";v="112", "Google Chrome";v="112", "Not:A-Brand";v="99"`)
-// 	req.Header.Set("sec-ch-ua-mobile", "?0")
-// 	req.Header.Set("sec-ch-ua-platform", `"Windows"`)
-// 	req.Header.Set("sec-fetch-dest", "empty")
-// 	req.Header.Set("sec-fetch-mode", "cors")
-// 	req.Header.Set("sec-fetch-site", "same-origin")
-// 	req.Header.Set("user-agent", "Mozilla/5.0 (Linux; Android 7.1; vivo 1716 Build/N2G47H) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.98 Mobile Safari/537.36")
+
+// 	req.Header = http.Header{
+// 		"content-type":    {"application/x-www-form-urlencoded"},
+// 		"cookies": {user.Cookies},
+// 		"user-agent": {"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36"},
+// 	}
 
 // 	resp, err := client.Do(req)
 // 	if err != nil {
 // 		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error opening free chest: %v.", err))
-// 		openFreeChest(index, cookiesData)
+// 		openFreeChest(index, user)
 // 		return
 // 	}
 // 	defer resp.Body.Close()
-// fmt.Println(resp.StatusCode)
+// 	fmt.Println(resp.StatusCode)
 
 // 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 // 		bodyBytes, err := io.ReadAll(resp.Body)
 // 		if err != nil {
 // 			Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%v] Error opening free chest: %v.",userNumber, err))
-// 			openFreeChest(index, cookiesData)
+// 			openFreeChest(index, user)
 // 			return
 // 		}
 // 		var freeCaseStruct models.FreeCaseStruct
 // 		err = json.Unmarshal(bodyBytes, &freeCaseStruct)
 // 		if err != nil {
 // 			Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%v] Error opening free chest: %v.",userNumber, err))
-// 			openFreeChest(index, cookiesData)
+// 			openFreeChest(index, user)
 // 			return
 // 		}
 
 // 		if freeCaseStruct.Status {
 // 			Log(Logger, logrus.InfoLevel,  fmt.Sprintf("[%v] Opened free chest: %v , %v",userNumber,freeCaseStruct.WinnerData.PrizeValue.Title, freeCaseStruct.WinnerData.PrizeValue.Subtitle))
 // 			Sleep(1000 * 60 * 60)
-// 			openFreeChest(index, cookiesData)
-// 		} else {
+// 			openFreeChest(index, user)
+// 			} else {
 // 			Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%v] Can't open free case yet: %v",userNumber,freeCaseStruct.Error))
 // 			Sleep(1000 * 60 * 60)
-// 			openFreeChest(index, cookiesData)
+// 			openFreeChest(index, user)
 // 		}
 
 // 	} else if resp.StatusCode >= 500 {
 // 		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%v] Error opening free chest: %v.",userNumber,resp.StatusCode))
-// 		openFreeChest(index, cookiesData)
+// 		openFreeChest(index, user)
 // 		return
 // 	}
 // }
 
 
 func monitoringGiveaway(raffleType string) {
+	// for index, user := range users["usernames"] {
+	// 	go openFreeChest(index, user)
+	// }
+	go DiscordMonitorGold(users)
 		var retriesInteger int = 0
 		prevGiveawayID := ""
+
+		req, err := http.NewRequest(http.MethodGet, "https://wss-2061.key-drop.com/v1/giveaway//list?type=active&page=0&perPage=5&status=active&sort=latest", nil)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+	
+		req.Header = http.Header{
+			"user-agent": {"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36"},
+		}
+
 		for {
-			client := &http.Client{}
-			req, err := http.NewRequest("GET", "https://ws-2061.key-drop.com/v1/giveaway//list?type=active&page=0&perPage=5&status=active&sort=latest", nil)
-			if err != nil {
-				Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error: %v.", err))
-				monitoringGiveaway(raffleType)
-				return
+			var proxy string
+
+			// jar := tls_client.NewCookieJar()
+			options := []tls_client.HttpClientOption{
+				tls_client.WithTimeoutSeconds(30),
+				tls_client.WithClientProfile(tls_client.Chrome_112),
+				// tls_client.WithCookieJar(jar), 
 			}
-			req.Header.Set("Content-Type", "application/json")
-			req.Header.Set("user-agent", "Mozilla/5.0 (Linux; Android 7.1; vivo 1716 Build/N2G47H) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.98 Mobile Safari/537.36")
+
+			if !proxyLess {
+				randomIndex := rand.Intn(len(proxyList))
+				randomProxy := proxyList[randomIndex]
+				proxyArr := strings.Split(randomProxy, ":")
+				proxy = fmt.Sprintf("http://%s:%s@%s:%s", proxyArr[2], proxyArr[3], proxyArr[0], proxyArr[1])
+				options = append(options, tls_client.WithProxyUrl(proxy))
+			}
+
+				client, err := tls_client.NewHttpClient(tls_client.NewNoopLogger(), options...)
+				if err != nil {
+					log.Println(err)
+					return
+				}
+			
 			resp, err := client.Do(req)
 			if err != nil {
 				Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error: %v.", err))
@@ -186,17 +231,16 @@ func monitoringGiveaway(raffleType string) {
 					monitoringGiveaway(raffleType)
 					return
 				}
-
 				var giveawayStruct models.MonitoringGiveawayStruct
 				err = json.Unmarshal(bodyBytes, &giveawayStruct)
 				if err != nil {
-					Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error: %v.", err))
+					Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error unmarshal giveaway: %v.", err))
 					monitoringGiveaway(raffleType)
 					return
 				}
 
 				for i := 0; i < len(giveawayStruct.Data); i++ {
-					if giveawayStruct.Data[i].Frequency == raffleType && prevGiveawayID != giveawayStruct.Data[i].ID {
+					if giveawayStruct.Data[i].Frequency == raffleType && prevGiveawayID != giveawayStruct.Data[i].ID && giveawayStruct.Data[i].ParticipantCount != 1000 {
 						Log(Logger, logrus.WarnLevel,  fmt.Sprintf("Found new giveaway: %s, sending tasks!", giveawayStruct.Data[i].ID))
 						for index, user := range users["usernames"] {							
 							go gettingBearer(raffleType, giveawayStruct.Data[i].ID, user, index, retriesInteger)
@@ -217,6 +261,13 @@ func monitoringGiveaway(raffleType string) {
 				}
 
 			} else {
+				// bodyBytes, err := io.ReadAll(resp.Body)
+				// if err != nil {
+				// 	Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error: %v.", err))
+				// 	monitoringGiveaway(raffleType)
+				// 	return
+				// }
+				// fmt.Println(string(bodyBytes))
 				Log(Logger, logrus.ErrorLevel,  fmt.Sprintf( "Error monitoring giveaway: %v", resp.StatusCode))
 			}
 		Sleep(randomIntFromInterval(5000, 12000))	
@@ -225,39 +276,39 @@ func monitoringGiveaway(raffleType string) {
 
 func gettingBearer(raffleType string, giveawayID string, user Users, index int, retriesInteger int)  {
 	userNumber := fmt.Sprintf("%03d", index)
-	var cookiesData string = user.Cookies
-	var client *http.Client
-	var proxyURL string = user.ProxyURL
+
+	var options []tls_client.HttpClientOption = []tls_client.HttpClientOption{
+		tls_client.WithTimeoutSeconds(30),
+		tls_client.WithClientProfile(tls_client.Chrome_108),
+	}
+	
 	if !proxyLess {
-		urlProxy, err := url.Parse(proxyURL)
-		if err != nil {
-			Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%s] Error parsing proxy bearer: %v.", userNumber ,err))
-			return
-		}
-		client = &http.Client {
-			Transport: &http.Transport{
-				Proxy: http.ProxyURL(urlProxy),
-			},
-		}
-	} else {
-		client = &http.Client{}
+		options = append(options, tls_client.WithProxyUrl(user.ProxyURL))
+	} 
+
+
+	client, err := tls_client.NewHttpClient(tls_client.NewNoopLogger(), options...)
+	if err != nil {
+		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%s] Error: %v.", userNumber ,err))
 	}
 
-	url := "https://key-drop.com/token?t=" + fmt.Sprint(time.Now().Unix())
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest(http.MethodGet, "https://key-drop.com/token?t=" + fmt.Sprint(time.Now().Unix()), nil)
 	if err != nil {
-		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%s] Error setting up request bearer: %v.", userNumber ,err))
+		log.Println(err)
 		return
 	}
-    req.Header.Set("cookie", cookiesData)
-	req.Header.Set("user-agent", "Mozilla/5.0 (Linux; Android 7.1; vivo 1716 Build/N2G47H) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.98 Mobile Safari/537.36")
+
+	req.Header = http.Header{
+		"cookie" : {user.Cookies},
+		"user-agent": {"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36"},
+	}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%s] Error requesting bearer: %v.",userNumber, err))
 		return
 	}
 	defer resp.Body.Close()
-	
 
     if resp.StatusCode >= 200 && resp.StatusCode < 300 {
         body, err := io.ReadAll(resp.Body)
@@ -266,7 +317,7 @@ func gettingBearer(raffleType string, giveawayID string, user Users, index int, 
 			return
 		}
 		retriesInteger = 1
-		joinGiveaway(cookiesData, raffleType, giveawayID, string(body), user, false, index, retriesInteger)
+		joinGiveaway(user.Cookies, raffleType, giveawayID, string(body), user, false, index, retriesInteger)
 	} else if resp.StatusCode >= 500 {
 		if retriesInteger<=3 {
 			Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%s] Error getting bearer, retrying: %v. Retry number: %v", userNumber , resp.StatusCode, retriesInteger))
@@ -282,23 +333,21 @@ func gettingBearer(raffleType string, giveawayID string, user Users, index int, 
 
 func joinGiveaway(cookiesData string, raffleType string, giveawayID string, bearerToken string ,user Users, iscaptcha bool, index int, retriesInteger int) {
 	userNumber := fmt.Sprintf("%03d", index)
-
-	var client *http.Client
-	var proxyURL string = user.ProxyURL
-	if !proxyLess {
-		urlProxy, err := url.Parse(proxyURL)
-		if err != nil {
-			Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%s] Error parsing proxy joingiveaway: %v.",userNumber, err))
-			return
-		}
-		client = &http.Client {
-			Transport: &http.Transport{
-				Proxy: http.ProxyURL(urlProxy),
-			},
-		}
-	} else {
-		client = &http.Client{}
+	var options []tls_client.HttpClientOption = []tls_client.HttpClientOption{
+		tls_client.WithTimeoutSeconds(30),
+		tls_client.WithClientProfile(tls_client.Chrome_108),
 	}
+	
+	if !proxyLess {
+		options = append(options, tls_client.WithProxyUrl(user.ProxyURL))
+	} 
+
+
+	client, err := tls_client.NewHttpClient(tls_client.NewNoopLogger(), options...)
+	if err != nil {
+		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%s] Error: %v.", userNumber ,err))
+	}
+
 	var payload io.Reader
 	if iscaptcha {
 		solution, err := gettingCaptchaCapmonster(giveawayID, user, index)
@@ -311,11 +360,18 @@ func joinGiveaway(cookiesData string, raffleType string, giveawayID string, bear
 	} else {
 		payload = nil
 	}
-	url := "https://ws-3002.key-drop.com/v1/giveaway//joinGiveaway/" + fmt.Sprint(giveawayID)
-	req, err := http.NewRequest("PUT", url, payload)
+
+
+	url := "https://wss-3002.key-drop.com/v1/giveaway//joinGiveaway/" + fmt.Sprint(giveawayID)
+	req, err := http.NewRequest(http.MethodPut, url, payload)
 	if err != nil {
 		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%s] Error setting request joingiveaway: %v.",userNumber, err))
 		return
+	}
+
+	req.Header = http.Header{
+		"cookie" : {user.Cookies},
+		"user-agent": {"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36"},
 	}
 
 	if iscaptcha {
@@ -376,16 +432,40 @@ func joinGiveaway(cookiesData string, raffleType string, giveawayID string, bear
 
 
 func readWinners(giveawayID string, raffleType string) {
-	client := &http.Client{}
-	url := "https://ws-2061.key-drop.com/v1/giveaway//data/" + fmt.Sprint(giveawayID)
+	url := "https://wss-2061.key-drop.com/v1/giveaway//data/" + fmt.Sprint(giveawayID)
 
+	var proxy string
 
-	req, err := http.NewRequest("GET", url, nil)
+	// jar := tls_client.NewCookieJar()
+	options := []tls_client.HttpClientOption{
+		tls_client.WithTimeoutSeconds(30),
+		tls_client.WithClientProfile(tls_client.Chrome_112),
+		// tls_client.WithCookieJar(jar), 
+	}
+
+	if !proxyLess {
+		randomIndex := rand.Intn(len(proxyList))
+		randomProxy := proxyList[randomIndex]
+		proxyArr := strings.Split(randomProxy, ":")
+		proxy = fmt.Sprintf("http://%s:%s@%s:%s", proxyArr[2], proxyArr[3], proxyArr[0], proxyArr[1])
+		options = append(options, tls_client.WithProxyUrl(proxy))
+	}
+
+	client, err := tls_client.NewHttpClient(tls_client.NewNoopLogger(), options...)
 	if err != nil {
-		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error setting up request readwinners: %v.", err))
+		log.Println(err)
 		return
 	}
-	req.Header.Set("user-agent", "Mozilla/5.0 (Linux; Android 7.1; vivo 1716 Build/N2G47H) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.98 Mobile Safari/537.36")
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	req.Header = http.Header{
+		"user-agent": {"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36"},
+	}
 
 	resp, err := client.Do(req)
 	if err != nil {
