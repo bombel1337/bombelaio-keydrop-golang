@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"time"
-	// "net/url"
+	"net/url"
 	// "bytes"
 	"strings"
 	"log"
@@ -100,84 +100,83 @@ func GettingLoggedIn(cookiesData string, raffleType string , integerUser int) {
 	}
 }
 
-// func openFreeChest(index int, user Users){
-// 	userNumber := fmt.Sprintf("%03d", index)
-// 	postData := url.Values{}
-// 	postData.Add("level", "0")
-// 	var options []tls_client.HttpClientOption = []tls_client.HttpClientOption{
-// 		tls_client.WithTimeoutSeconds(30),
-// 		tls_client.WithClientProfile(tls_client.Chrome_108),
-// 	}
+func openFreeChest(index int, user Users){
+	userNumber := fmt.Sprintf("%03d", index)
+	postData := url.Values{}
+	postData.Add("level", "0")
+	var options []tls_client.HttpClientOption = []tls_client.HttpClientOption{
+		tls_client.WithTimeoutSeconds(30),
+		tls_client.WithClientProfile(tls_client.Chrome_108),
+	}
 	
-// 	if !proxyLess {
-// 		options = append(options, tls_client.WithProxyUrl(user.ProxyURL))
-// 	} 
+	if !proxyLess {
+		options = append(options, tls_client.WithProxyUrl(user.ProxyURL))
+	} 
 
 
-// 	client, err := tls_client.NewHttpClient(tls_client.NewNoopLogger(), options...)
-// 	if err != nil {
-// 		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%s] Error: %v.", userNumber ,err))
-// 	}
+	client, err := tls_client.NewHttpClient(tls_client.NewNoopLogger(), options...)
+	if err != nil {
+		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%s] Error: %v.", userNumber ,err))
+	}
 
 
-// 	req, err := http.NewRequest(http.MethodPost, "https://key-drop.com/pl/apiData/DailyFree/open", strings.NewReader(postData.Encode()))
-// 	if err != nil {
-// 		log.Println(err)
-// 		return
-// 	}
+	req, err := http.NewRequest(http.MethodPost, "https://key-drop.com/pl/apiData/DailyFree/open", strings.NewReader(postData.Encode()))
+	if err != nil {
+		log.Println(err)
+		return
+	}
 
-// 	req.Header = http.Header{
-// 		"content-type":    {"application/x-www-form-urlencoded"},
-// 		"cookies": {user.Cookies},
-// 		"user-agent": {"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36"},
-// 	}
+	req.Header = http.Header{
+		"content-type": {"application/x-www-form-urlencoded"},
+		"cookie": {user.Cookies},
+		"user-agent": {"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36"},
+	}
 
-// 	resp, err := client.Do(req)
-// 	if err != nil {
-// 		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error opening free chest: %v.", err))
-// 		openFreeChest(index, user)
-// 		return
-// 	}
-// 	defer resp.Body.Close()
-// 	fmt.Println(resp.StatusCode)
+	resp, err := client.Do(req)
+	if err != nil {
+		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error opening free chest: %v.", err))
+		openFreeChest(index, user)
+		return
+	}
+	defer resp.Body.Close()
 
-// 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-// 		bodyBytes, err := io.ReadAll(resp.Body)
-// 		if err != nil {
-// 			Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%v] Error opening free chest: %v.",userNumber, err))
-// 			openFreeChest(index, user)
-// 			return
-// 		}
-// 		var freeCaseStruct models.FreeCaseStruct
-// 		err = json.Unmarshal(bodyBytes, &freeCaseStruct)
-// 		if err != nil {
-// 			Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%v] Error opening free chest: %v.",userNumber, err))
-// 			openFreeChest(index, user)
-// 			return
-// 		}
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%v] Error opening free chest: %v.",userNumber, err))
+			openFreeChest(index, user)
+			return
+		}
+		var freeCaseStruct models.FreeCaseStruct
+		err = json.Unmarshal(bodyBytes, &freeCaseStruct)
+		if err != nil {
+			Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%v] Error opening free chest: %v.",userNumber, err))
+			openFreeChest(index, user)
+			return
+		}
 
-// 		if freeCaseStruct.Status {
-// 			Log(Logger, logrus.InfoLevel,  fmt.Sprintf("[%v] Opened free chest: %v , %v",userNumber,freeCaseStruct.WinnerData.PrizeValue.Title, freeCaseStruct.WinnerData.PrizeValue.Subtitle))
-// 			Sleep(1000 * 60 * 60)
-// 			openFreeChest(index, user)
-// 			} else {
-// 			Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%v] Can't open free case yet: %v",userNumber,freeCaseStruct.Error))
-// 			Sleep(1000 * 60 * 60)
-// 			openFreeChest(index, user)
-// 		}
+		if freeCaseStruct.Status {
+			Log(Logger, logrus.InfoLevel,  fmt.Sprintf("[%v] Opened free chest: %v , %v",userNumber,freeCaseStruct.WinnerData.PrizeValue.Title, freeCaseStruct.WinnerData.PrizeValue.Subtitle))
+			Sleep(1000 * 60 * 60)
+			openFreeChest(index, user)
+			} else {
+			Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%v] Can't open free case yet: %v",userNumber,freeCaseStruct))
+			Sleep(1000 * 60 * 60)
+			openFreeChest(index, user)
+		}
 
-// 	} else if resp.StatusCode >= 500 {
-// 		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%v] Error opening free chest: %v.",userNumber,resp.StatusCode))
-// 		openFreeChest(index, user)
-// 		return
-// 	}
-// }
+	} else if resp.StatusCode >= 500 {
+		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%v] Error opening free chest: %v.",userNumber,resp.StatusCode))
+		openFreeChest(index, user)
+		return
+	}
+}
 
 
 func monitoringGiveaway(raffleType string) {
-	// for index, user := range users["usernames"] {
-	// 	go openFreeChest(index, user)
-	// }
+	for index, user := range users["usernames"] {
+		go openFreeChest(index, user)
+	}
 	go DiscordMonitorGold(users)
 		var retriesInteger int = 0
 		prevGiveawayID := ""
@@ -238,19 +237,29 @@ func monitoringGiveaway(raffleType string) {
 					monitoringGiveaway(raffleType)
 					return
 				}
+				var totalPrice float64 = 0.0
 
 				for i := 0; i < len(giveawayStruct.Data); i++ {
 					if giveawayStruct.Data[i].Frequency == raffleType && prevGiveawayID != giveawayStruct.Data[i].ID && giveawayStruct.Data[i].ParticipantCount != 1000 {
-						Log(Logger, logrus.WarnLevel,  fmt.Sprintf("Found new giveaway: %s, sending tasks!", giveawayStruct.Data[i].ID))
-						for index, user := range users["usernames"] {							
-							go gettingBearer(raffleType, giveawayStruct.Data[i].ID, user, index, retriesInteger)
-							if err != nil {
-								Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error: %v.", err))
-								monitoringGiveaway(raffleType)
-								return
-							}
-							
+						for _, prize := range giveawayStruct.Data[i].Prizes {		
+							totalPrice += prize.Price
 						}
+
+						if (totalPrice > 2) {
+							Log(Logger, logrus.WarnLevel,  fmt.Sprintf("Found new giveaway: %s, sending tasks!", giveawayStruct.Data[i].ID))
+							for index, user := range users["usernames"] {							
+								go gettingBearer(raffleType, giveawayStruct.Data[i].ID, user, index, retriesInteger)
+								if err != nil {
+									Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error: %v.", err))
+									monitoringGiveaway(raffleType)
+									return
+								}
+								
+							}
+						} else {
+							Log(Logger, logrus.WarnLevel,  fmt.Sprintf("Found new giveaway: %s, but prize is too low, not sending tasks! Value: %v", giveawayStruct.Data[i].ID, totalPrice))
+						}
+				
 
 						go readWinners(prevGiveawayID, raffleType)
 						prevGiveawayID = giveawayStruct.Data[i].ID
@@ -261,13 +270,6 @@ func monitoringGiveaway(raffleType string) {
 				}
 
 			} else {
-				// bodyBytes, err := io.ReadAll(resp.Body)
-				// if err != nil {
-				// 	Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error: %v.", err))
-				// 	monitoringGiveaway(raffleType)
-				// 	return
-				// }
-				// fmt.Println(string(bodyBytes))
 				Log(Logger, logrus.ErrorLevel,  fmt.Sprintf( "Error monitoring giveaway: %v", resp.StatusCode))
 			}
 		Sleep(randomIntFromInterval(5000, 12000))	
@@ -436,11 +438,9 @@ func readWinners(giveawayID string, raffleType string) {
 
 	var proxy string
 
-	// jar := tls_client.NewCookieJar()
 	options := []tls_client.HttpClientOption{
 		tls_client.WithTimeoutSeconds(30),
 		tls_client.WithClientProfile(tls_client.Chrome_112),
-		// tls_client.WithCookieJar(jar), 
 	}
 
 	if !proxyLess {
