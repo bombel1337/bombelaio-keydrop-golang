@@ -156,12 +156,16 @@ func openFreeChest(index int, user Users){
 		}
 
 		if freeCaseStruct.Status {
-			Log(Logger, logrus.InfoLevel,  fmt.Sprintf("[%v] Opened free chest: %v , %v",userNumber,freeCaseStruct.WinnerData.PrizeValue.Title, freeCaseStruct.WinnerData.PrizeValue.Subtitle))
-			Sleep(1000 * 60 * 60)
+			if freeCaseStruct.WinnerData.PrizeValue.Title == "" {
+				Log(Logger, logrus.InfoLevel,  fmt.Sprintf("[%v] Opened free chest: %v , %v",userNumber,freeCaseStruct.WinnerData.PrizeValue.Title, freeCaseStruct.WinnerData.PrizeValue.Subtitle))
+			} else {
+				Log(Logger, logrus.InfoLevel,  fmt.Sprintf("[%v] Opened free chest: %v , %v",userNumber,freeCaseStruct, freeCaseStruct))
+			}
+			Sleep(1000 * 60 * 60 * 24)
 			openFreeChest(index, user)
 			} else {
 			Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%v] Can't open free case yet: %v",userNumber,freeCaseStruct))
-			Sleep(1000 * 60 * 60)
+			Sleep(1000 * 60 * 60 * 24)
 			openFreeChest(index, user)
 		}
 
@@ -209,11 +213,11 @@ func monitoringGiveaway(raffleType string) {
 				options = append(options, tls_client.WithProxyUrl(proxy))
 			}
 
-				client, err := tls_client.NewHttpClient(tls_client.NewNoopLogger(), options...)
-				if err != nil {
-					log.Println(err)
-					return
-				}
+			client, err := tls_client.NewHttpClient(tls_client.NewNoopLogger(), options...)
+			if err != nil {
+				log.Println(err)
+				return
+			}
 			
 			resp, err := client.Do(req)
 			if err != nil {
@@ -246,7 +250,7 @@ func monitoringGiveaway(raffleType string) {
 						}
 
 						if (totalPrice > 2) {
-							Log(Logger, logrus.WarnLevel,  fmt.Sprintf("Found new giveaway: %s, sending tasks!", giveawayStruct.Data[i].ID))
+							Log(Logger, logrus.WarnLevel,  fmt.Sprintf("Found new giveaway: %s, sending tasks! Value: %v", giveawayStruct.Data[i].ID, totalPrice))
 							for index, user := range users["usernames"] {							
 								go gettingBearer(raffleType, giveawayStruct.Data[i].ID, user, index, retriesInteger)
 								if err != nil {

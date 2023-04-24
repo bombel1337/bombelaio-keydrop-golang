@@ -6,7 +6,6 @@ package utils
 import (
 	"fmt"
 	"io"
-	"log"
 	"time"
 	"encoding/json"
 	// "bytes"
@@ -31,14 +30,17 @@ func DiscordMonitorGold(users map[string][]Users) {
 	client, err := tls_client.NewHttpClient(tls_client.NewNoopLogger(), options...)
 	if err != nil {
 		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error: %v." ,err))
+		DiscordMonitorGold(users)
+		return
 	}
 	req, err := http.NewRequest(http.MethodGet, "https://discord.com/api/v9/channels/868574854536888401/messages?limit=50", nil)
 	if err != nil {
-		log.Println(err)
+		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error: %v." ,err))
+		DiscordMonitorGold(users)
 		return
 	}
 
-	req.Header = http.Header{
+	req.Header = http.Header {
 		"cookie" : {"__dcfduid=401d2320df8111edbc64f153b4456d25; __sdcfduid=401d2321df8111edbc64f153b4456d25ae69b7e45a6cdad1af635a2f1d400d5fea5d94c0414ba8b920a6f1594e802770; __cfruid=8f2fb00d9db926a38c342922f243d3124ce7060b-1682092298; __cf_bm=0FJRjS_g2Cx9e0Ib0CX3ieILMvbvW3WeItGq3fLCwO0-1682092301-0-AWS0oEw3w1XugpgmdMjYnNbi3qvje+ptSSiGzrLxbO40wmJAVrkTM5hfhB1mGIDbrsasRyxpoIEUL9v3zLyaKqRQvn3ZfOkA35mhdsIWT+E2"},
 		"accept": {"*/*"},
 		"accept-language": {"pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7"},
@@ -59,19 +61,24 @@ func DiscordMonitorGold(users map[string][]Users) {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Fatal(err)
+		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error: %v." ,err))
+		DiscordMonitorGold(users)
+		return
 	}
 
 	defer resp.Body.Close()
 	bodyText, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal(err)
+		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error: %v." ,err))
+		DiscordMonitorGold(users)
+		return
 	}
 
 	var monitorDiscordGoldCodesStruct GoldenCodesDiscord
 	err = json.Unmarshal(bodyText, &monitorDiscordGoldCodesStruct)
 	if err != nil {
 		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error while monitoring discord gold codes: %v.", err))
+		DiscordMonitorGold(users)
 		return
 	}
 	if  !firstPing {
@@ -81,6 +88,8 @@ func DiscordMonitorGold(users map[string][]Users) {
 				Sleep(randomIntFromInterval(150,250))	
 				go EnterGold(monitorDiscordGoldCodesStruct[0].Content, user)
 				if err != nil {
+					Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error: %v." ,err))
+					DiscordMonitorGold(users)
 					return
 				}
 			}
@@ -109,11 +118,12 @@ func EnterGold(promoCode string, user Users) {
 	client, err := tls_client.NewHttpClient(tls_client.NewNoopLogger(), options...)
 	if err != nil {
 		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error: %v." ,err))
+		return
 	}
 
 	req, err := http.NewRequest(http.MethodPost, "https://key-drop.com/pl/Api/activation_code", data)
 	if err != nil {
-		log.Println(err)
+		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error: %v." ,err))
 		return
 	}
 
@@ -126,7 +136,8 @@ func EnterGold(promoCode string, user Users) {
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Fatal(err)
+		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error: %v." ,err))
+		return
 	}
 	defer resp.Body.Close()
 	
@@ -135,13 +146,14 @@ func EnterGold(promoCode string, user Users) {
 	
 	bodyText, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal(err)
+		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error: %v." ,err))
+		return
 	}
 
 	var adddingCodesStruct AddingCodes
 	err = json.Unmarshal(bodyText, &adddingCodesStruct)
 	if err != nil {
-		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error while unmarshal discord gold codes: %v.", err))
+		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error: %v." ,err))
 		return
 	}
 	
