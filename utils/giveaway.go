@@ -18,6 +18,10 @@ import (
 	http "github.com/bogdanfinn/fhttp"
 	tls_client "github.com/bogdanfinn/tls-client"
 )
+var firstReq bool = true
+var retriesInteger int = 0
+var prevGiveawayID string = ""
+
 
 func init() {
 	Logger = logrus.New()
@@ -164,7 +168,7 @@ func openFreeChest(index int, user Users){
 			Sleep(1000 * 60 * 60 * 24)
 			openFreeChest(index, user)
 			} else {
-			Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%v] Can't open free case yet: %v",userNumber,freeCaseStruct))
+			Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%v] Can't open free case yet: %v",userNumber,freeCaseStruct.Error))
 			Sleep(1000 * 60 * 60 * 24)
 			openFreeChest(index, user)
 		}
@@ -178,16 +182,19 @@ func openFreeChest(index int, user Users){
 
 
 func monitoringGiveaway(raffleType string) {
-	for index, user := range users["usernames"] {
-		go openFreeChest(index, user)
+	if firstReq {
+		for index, user := range users["usernames"] {
+			go openFreeChest(index, user)
+		}
+		go DiscordMonitorGold(users)
+		firstReq = false
 	}
-	go DiscordMonitorGold(users)
-		var retriesInteger int = 0
-		prevGiveawayID := ""
 
 		req, err := http.NewRequest(http.MethodGet, "https://wss-2061.key-drop.com/v1/giveaway//list?type=active&page=0&perPage=5&status=active&sort=latest", nil)
 		if err != nil {
-			log.Println(err)
+			Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error monitoring  giveaway: %v.", err))
+			Sleep(5000)
+			monitoringGiveaway(raffleType)
 			return
 		}
 	
@@ -215,13 +222,16 @@ func monitoringGiveaway(raffleType string) {
 
 			client, err := tls_client.NewHttpClient(tls_client.NewNoopLogger(), options...)
 			if err != nil {
-				log.Println(err)
+				Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error doing request  giveaway: %v.", err))
+				Sleep(5000)
+				monitoringGiveaway(raffleType)
 				return
 			}
 			
 			resp, err := client.Do(req)
 			if err != nil {
 				Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error: %v.", err))
+				Sleep(5000)
 				monitoringGiveaway(raffleType)
 				return
 			}
@@ -231,13 +241,15 @@ func monitoringGiveaway(raffleType string) {
 				bodyBytes, err := io.ReadAll(resp.Body)
 				if err != nil {
 					Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error: %v.", err))
-					monitoringGiveaway(raffleType)
-					return
+					Sleep(5000)
+				monitoringGiveaway(raffleType)
+				return
 				}
 				var giveawayStruct models.MonitoringGiveawayStruct
 				err = json.Unmarshal(bodyBytes, &giveawayStruct)
 				if err != nil {
 					Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error unmarshal giveaway: %v.", err))
+					Sleep(5000)
 					monitoringGiveaway(raffleType)
 					return
 				}
@@ -250,11 +262,14 @@ func monitoringGiveaway(raffleType string) {
 						}
 
 						if (totalPrice > 2) {
+							go readWinners(prevGiveawayID, raffleType)
 							Log(Logger, logrus.WarnLevel,  fmt.Sprintf("Found new giveaway: %s, sending tasks! Value: %v", giveawayStruct.Data[i].ID, totalPrice))
-							for index, user := range users["usernames"] {							
+							for index, user := range users["usernames"] {	
+								Sleep(randomIntFromInterval(0,1000))						
 								go gettingBearer(raffleType, giveawayStruct.Data[i].ID, user, index, retriesInteger)
 								if err != nil {
-									Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error: %v.", err))
+									Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error sending tasks: %v.", err))
+									Sleep(5000)
 									monitoringGiveaway(raffleType)
 									return
 								}
@@ -262,10 +277,9 @@ func monitoringGiveaway(raffleType string) {
 							}
 						} else {
 							Log(Logger, logrus.WarnLevel,  fmt.Sprintf("Found new giveaway: %s, but prize is too low, not sending tasks! Value: %v", giveawayStruct.Data[i].ID, totalPrice))
+							Sleep(10000)
 						}
-				
-
-						go readWinners(prevGiveawayID, raffleType)
+					
 						prevGiveawayID = giveawayStruct.Data[i].ID
 					} else if (i == len(giveawayStruct.Data)){
 						Log(Logger, logrus.WarnLevel,  fmt.Sprintf("Couldn't find any matching giveaways for: : %s!", raffleType))
