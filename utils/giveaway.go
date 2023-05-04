@@ -10,9 +10,7 @@ import (
 	"strings"
 	"log"
     "math/rand"
-	
 	"bombelaio-keydrop-golang/models"
-
 	"github.com/mattn/go-colorable"
 	"github.com/sirupsen/logrus"
 	http "github.com/bogdanfinn/fhttp"
@@ -21,6 +19,7 @@ import (
 var firstReq bool = true
 var retriesInteger int = 0
 var prevGiveawayID string = ""
+var arrayOfWaitingAccounts [][]string
 
 
 func init() {
@@ -32,12 +31,17 @@ func init() {
 
 func GettingLoggedIn(cookiesData string, raffleType string , integerUser int) {
 	userNumber := fmt.Sprintf("%03d", integerUser)
+
+	// copy(arrayOfWaitingAccounts[integerUser - 1:], arrayOfWaitingAccounts[integerUser:])
+	// arrayOfWaitingAccounts = arrayOfWaitingAccounts[:len(arrayOfWaitingAccounts)-1]
+	// fmt.Println(arrayOfWaitingAccounts)
+
+	
 	var proxyURL string
 	var options []tls_client.HttpClientOption = []tls_client.HttpClientOption{
 		tls_client.WithTimeoutSeconds(30),
 		tls_client.WithClientProfile(tls_client.Chrome_108),
 	}
-	
 	if !proxyLess {
 		var randomProxy = proxyList[integerUser - 1]
 		proxyArr := strings.Split(randomProxy, ":")
@@ -105,6 +109,7 @@ func GettingLoggedIn(cookiesData string, raffleType string , integerUser int) {
 }
 
 func openFreeChest(index int, user Users){
+	
 	userNumber := fmt.Sprintf("%03d", index)
 	postData := url.Values{}
 	postData.Add("level", "0")
@@ -254,25 +259,42 @@ func monitoringGiveaway(raffleType string) {
 					return
 				}
 				var totalPrice float64 = 0.0
-
 				for i := 0; i < len(giveawayStruct.Data); i++ {
 					if giveawayStruct.Data[i].Frequency == raffleType && prevGiveawayID != giveawayStruct.Data[i].ID && giveawayStruct.Data[i].ParticipantCount != 1000 {
 						for _, prize := range giveawayStruct.Data[i].Prizes {		
 							totalPrice += prize.Price
 						}
 
-						if (totalPrice > 2) {
+						if (totalPrice > 10) {
 							go readWinners(prevGiveawayID, raffleType)
 							Log(Logger, logrus.WarnLevel,  fmt.Sprintf("Found new giveaway: %s, sending tasks! Value: %v", giveawayStruct.Data[i].ID, totalPrice))
 							for index, user := range users["usernames"] {	
-								Sleep(randomIntFromInterval(0,1000))						
-								go gettingBearer(raffleType, giveawayStruct.Data[i].ID, user, index, retriesInteger)
-								if err != nil {
-									Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error sending tasks: %v.", err))
-									Sleep(5000)
-									monitoringGiveaway(raffleType)
-									return
+								userIsWaiting := false
+								for i, name := range arrayOfWaitingAccounts {
+									Log(Logger, logrus.WarnLevel,  fmt.Sprintf("username: %s, name: %v",user.Name, name[i]))
+									if user.Name == name[i] {		
+										userIsWaiting = true
+										break
+									}
 								}
+
+								if !userIsWaiting {
+									Sleep(randomIntFromInterval(0,1000))						
+									go gettingBearer(raffleType, giveawayStruct.Data[i].ID, user, index, retriesInteger)
+									if err != nil {
+										Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error sending tasks: %v.", err))
+										Sleep(5000)
+										monitoringGiveaway(raffleType)
+										return
+									}
+								} else {
+									Log(Logger, logrus.WarnLevel,  fmt.Sprintf("User: %v, is waiting because can't join yet.",user.Name))
+
+								}
+
+
+
+					
 								
 							}
 						} else {
@@ -433,8 +455,24 @@ func joinGiveaway(cookiesData string, raffleType string, giveawayID string, bear
 
 			Sleep(2500)
 			joinGiveaway(cookiesData, raffleType, giveawayID, bearerToken, user, true, index, retriesInteger)
-		} else {
+		} else  {
 			Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%v] User: %s, unfortunately has got an error while joining! Error: %v",userNumber, user.Name, joinGiveawayStruct.Message))
+			duration, err := ExtractTime(joinGiveawayStruct.Message)
+			if err != nil {
+				Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("[%s] Error marshal body join giveaway: %v.",userNumber, err))
+				return
+			}
+			arrayOfWaitingAccounts = make([][]string, TotalTasks)
+			arrayOfWaitingAccounts[index] = append(arrayOfWaitingAccounts[index], user.Name)
+		
+		
+			go func() {
+				Sleep(duration * 1000 + 10000)
+
+				copy(arrayOfWaitingAccounts[index:], arrayOfWaitingAccounts[index+1:])
+				Log(Logger, logrus.InfoLevel,  fmt.Sprintf("[%v] User: %s, can join giveaways again!",userNumber, user.Name))
+				arrayOfWaitingAccounts = arrayOfWaitingAccounts[:len(arrayOfWaitingAccounts)-1]
+			}()
 		}
 
 	} else if resp.StatusCode >= 500 {

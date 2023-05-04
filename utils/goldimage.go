@@ -167,7 +167,7 @@ func EnterGold(promoCode string, user Users) {
 	} else if adddingCodesStruct.ErrorCode == `usedCode` {
 		Log(Logger, logrus.InfoLevel,  fmt.Sprintf("Code already used for acc: %v. Data: %v", user.Name, adddingCodesStruct))
 
-	} else if adddingCodesStruct.Title == "Z\u0142oty kod zosta\u0142 aktywowany" {
+	} else if adddingCodesStruct.Title == "Z\u0142oty kod zosta\u0142 aktywowany" || adddingCodesStruct.Title ==  "The golden code has been activated"{
 		Log(Logger, logrus.InfoLevel,  fmt.Sprintf("Sucessfully added gold code for: %v. Data: %v", user.Name, adddingCodesStruct))
 	} else {
 		Log(Logger, logrus.WarnLevel,  fmt.Sprintf("Other response: %v. Data: %v", user.Name, adddingCodesStruct))

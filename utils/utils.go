@@ -11,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"github.com/sirupsen/logrus"
+	"strconv"
+	"regexp"
 )
 
 var proxyList []string // global variable to store the array
@@ -18,7 +20,7 @@ var proxyLess bool
 var CaptchaKey string 
 var IsWebhookEnabled bool
 var DiscordWebhook string 
-
+var TotalTasks int
 
 
 
@@ -112,22 +114,21 @@ func ReadDataCsv(raffleType string) {
 		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error opening data file %v.", err))
 	}
 	defer file.Close()
-
 	reader := csv.NewReader(file)
 	rows, err := reader.ReadAll()
+	TotalTasks = len(rows) - 1
 	if (len(rows)==2){
 		Log(Logger, logrus.WarnLevel,  fmt.Sprintf("Detected only %v account, restoring session.", len(rows) -1))
-
 	} else if (len(rows)>2){
-		Log(Logger, logrus.WarnLevel,  fmt.Sprintf("Detected wow a lot tbh: %v accounts, restoring sessions.", len(rows) -1))
-	}
 
-	if err != nil {
-		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error reading data file %v.", err))
+		Log(Logger, logrus.WarnLevel,  fmt.Sprintf("Detected wow a lot tbh: %v accounts, restoring sessions.", len(rows) -1))
+	} else if err != nil {
+		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Errferror reading dataor reading data file %v.", err))
 	}
 	var wg sync.WaitGroup
 
 	for i := 1; i < len(rows); i++ {
+
 		wg.Add(1)
 
 		go func(row []string, i int) {
@@ -137,7 +138,7 @@ func ReadDataCsv(raffleType string) {
 		}(rows[i], i)
 	}
 	wg.Wait()
-
+ 
 	monitoringGiveaway(raffleType)
 }
 
@@ -182,8 +183,8 @@ func EnsureProxyFile() {
 			proxyList = append(proxyList, record[proxiesIndex])
 		}
 	}
-	
-	if len(proxyList) == 0 {
+
+	if len(proxyList) == 1 {
 		proxyLess = true
 	}
 }
@@ -226,4 +227,25 @@ func (f *CustomFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 
     message := fmt.Sprintf("[%s] %s\n", entry.Time.Format("15:04:05"), entry.Message)
     return []byte("\x1b[" + fmt.Sprintf("%d", color) + "m" + message + "\x1b[0m"), nil
+}
+
+
+
+func ExtractTime(input string) (int, error) {
+	re := regexp.MustCompile(`(\d+)h\s*(\d+)m\s*(\d+)s`)
+	submatches := re.FindStringSubmatch(input)
+
+	if len(submatches) != 4 {
+		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("No time duration found in input: %s\n", input))
+		return 0, nil
+	}
+
+	hours, _ := strconv.Atoi(submatches[1])
+	minutes, _ := strconv.Atoi(submatches[2])
+	seconds, _ := strconv.Atoi(submatches[3])
+	// var totalSeconds = 60
+	var totalSeconds = hours * 60 * 60 + minutes * 60 + seconds
+	
+
+    return totalSeconds, nil
 }

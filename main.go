@@ -89,10 +89,10 @@ func main() {
 
 		case "5":
 			utils.Log(utils.Logger, logrus.WarnLevel, "Good choice... getting data.")
-
 			utils.Sleep(500)
 			utils.ReadDataCsv("amateur") 
 			
+
 		default:
 			utils.Log(utils.Logger, logrus.ErrorLevel, "Option doesnt't exist.")
 
