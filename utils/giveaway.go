@@ -265,7 +265,7 @@ func monitoringGiveaway(raffleType string) {
 							totalPrice += prize.Price
 						}
 
-						if (totalPrice > 10) {
+						if (totalPrice > 7) {
 							go readWinners(prevGiveawayID, raffleType)
 							Log(Logger, logrus.WarnLevel,  fmt.Sprintf("Found new giveaway: %s, sending tasks! Value: %v", giveawayStruct.Data[i].ID, totalPrice))
 							for index, user := range users["usernames"] {	
