@@ -36,7 +36,6 @@ func gettingCaptchaCapmonster(giveawayID string, user Users, index int) (string,
 	data := strings.NewReader(fmt.Sprintf(`{"clientKey": "%s", "task": {"type": "RecaptchaV2EnterpriseTaskProxyless", "websiteURL": "https://key-drop.com/pl/giveaways/keydrop/%s", "websiteKey": "6Ld2uggaAAAAAG9YRZYZkIhCdS38FZYpY9RRYkwN"}}`, CaptchaKey, giveawayID))
 	req, err := http.NewRequest("POST", "https://api.capmonster.cloud/createTask", data)
     if err != nil {
-		fmt.Println("watafak")
         return "err", err
     }
 	
@@ -48,7 +47,6 @@ func gettingCaptchaCapmonster(giveawayID string, user Users, index int) (string,
 
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Println("watafak2")
         return "err", err
 	}
 	defer resp.Body.Close()
@@ -57,8 +55,6 @@ func gettingCaptchaCapmonster(giveawayID string, user Users, index int) (string,
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
-			fmt.Println("watafak3")
-
 			return "err", err
 		}
 

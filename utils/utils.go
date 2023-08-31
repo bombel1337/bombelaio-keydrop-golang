@@ -4,79 +4,74 @@ import (
 	"bufio"
 	"encoding/csv"
 	"fmt"
-	"os"
-	"time"
+	"github.com/sirupsen/logrus"
 	"io"
-    "math/rand"
+	"math/rand"
+	"os"
+	"regexp"
+	"strconv"
 	"strings"
 	"sync"
-	"github.com/sirupsen/logrus"
-	"strconv"
-	"regexp"
+	"time"
 )
 
 var proxyList []string // global variable to store the array
 var proxyLess bool
-var CaptchaKey string 
+var CaptchaKey string
 var IsWebhookEnabled bool
-var DiscordWebhook string 
+var DiscordWebhook string
 var TotalTasks int
-
-
 
 type CustomFormatter struct{}
 
-
 type Users struct {
-    Name string
-	SteamID string
-    Tries  int
-	Avatar string
-	Wins int
+	Name     string
+	SteamID  string
+	Tries    int
+	Avatar   string
+	Wins     int
 	ProxyURL string
-	Cookies string
+	Cookies  string
 }
 
 // global object containing arrays of users
 var users = map[string][]Users{}
 var Logger *logrus.Logger
 
-
 func Log(logger *logrus.Logger, level logrus.Level, message string) {
-    logger.WithFields(logrus.Fields{}).Log(level, message)
+	logger.WithFields(logrus.Fields{}).Log(level, message)
 }
 
 func AddUserToArray(arrayName string, newUser Users) {
-    users[arrayName] = append(users[arrayName], newUser)
+	users[arrayName] = append(users[arrayName], newUser)
 }
 
 func UpdateUserTries(userName string) {
-    for arrayName, userArray := range users {
-        for i, user := range userArray {
-            if user.Name == userName {
-                // found the user, update their tries
-                users[arrayName][i].Tries++
-                return
-            }
-        }
-    }
+	for arrayName, userArray := range users {
+		for i, user := range userArray {
+			if user.Name == userName {
+				// found the user, update their tries
+				users[arrayName][i].Tries++
+				return
+			}
+		}
+	}
 }
 
 func UpdateUserWins(userName string) {
-    for arrayName, userArray := range users {
-        for i, user := range userArray {
-            if user.Name == userName {
-                // found the user, update their tries
-                users[arrayName][i].Wins++
-                return
-            }
-        }
-    }
+	for arrayName, userArray := range users {
+		for i, user := range userArray {
+			if user.Name == userName {
+				// found the user, update their tries
+				users[arrayName][i].Wins++
+				return
+			}
+		}
+	}
 }
 
-
 func Sleep(ms int) {
-    time.Sleep(time.Duration(ms) * time.Millisecond)
+	time.Sleep(time.Duration(ms) * time.Millisecond)
 }
 
 func randomIntFromInterval(min, max int) int {
@@ -85,45 +80,43 @@ func randomIntFromInterval(min, max int) int {
 }
 
 func EnsureDataFile() error {
-    // Check if the file exists
-    _, err := os.Stat("data.csv")
-    if os.IsNotExist(err) {
-        // Create the file with headers
-        file, err := os.Create("data.csv")
-        if err != nil {
-            return err
-        }
-        defer file.Close()
+	_, err := os.Stat("data.csv")
+	if os.IsNotExist(err) {
+		file, err := os.Create("data.csv")
+		if err != nil {
+			return err
+		}
+		defer file.Close()
 
-        writer := csv.NewWriter(file)
-        defer writer.Flush()
-        err = writer.Write([]string{"Proxies", "Cookies"})
-        if err != nil {
-            return err
-        }
-    } else if err != nil {
-        return err
-    }
+		writer := csv.NewWriter(file)
+		defer writer.Flush()
+		err = writer.Write([]string{"Proxies", "Cookies"})
+		if err != nil {
+			return err
+		}
+	} else if err != nil {
+		return err
+	}
 
-    return nil
+	return nil
 }
 
 func ReadDataCsv(raffleType string) {
 	file, err := os.Open("data.csv")
 	if err != nil {
-		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error opening data file %v.", err))
+		Log(Logger, logrus.ErrorLevel, fmt.Sprintf("Error opening data file %v.", err))
 	}
 	defer file.Close()
 	reader := csv.NewReader(file)
 	rows, err := reader.ReadAll()
 	TotalTasks = len(rows) - 1
-	if (len(rows)==2){
-		Log(Logger, logrus.WarnLevel,  fmt.Sprintf("Detected only %v account, restoring session.", len(rows) -1))
-	} else if (len(rows)>2){
+	if len(rows) == 2 {
+		Log(Logger, logrus.WarnLevel, fmt.Sprintf("Detected only %v account, restoring session.", len(rows)-1))
+	} else if len(rows) > 2 {
 
-		Log(Logger, logrus.WarnLevel,  fmt.Sprintf("Detected wow a lot tbh: %v accounts, restoring sessions.", len(rows) -1))
+		Log(Logger, logrus.WarnLevel, fmt.Sprintf("Detected wow a lot tbh: %v accounts, restoring sessions.", len(rows)-1))
 	} else if err != nil {
-		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Errferror reading dataor reading data file %v.", err))
+		Log(Logger, logrus.ErrorLevel, fmt.Sprintf("Errferror reading dataor reading data file %v.", err))
 	}
 	var wg sync.WaitGroup
 
@@ -138,25 +131,25 @@ func ReadDataCsv(raffleType string) {
 		}(rows[i], i)
 	}
 	wg.Wait()
- 
+
 	monitoringGiveaway(raffleType)
 }
 
 func EnsureProxyFile() {
 	file, err := os.Open("data.csv")
 	if err != nil {
-		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error opening data file: %v.", err))
+		Log(Logger, logrus.ErrorLevel, fmt.Sprintf("Error opening data file: %v.", err))
 		return
 	}
 	defer file.Close()
-	
+
 	r := csv.NewReader(file)
 	headers, err := r.Read()
 	if err != nil {
-		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error reading data file row: %v.", err))
+		Log(Logger, logrus.ErrorLevel, fmt.Sprintf("Error reading data file row: %v.", err))
 		return
 	}
-	
+
 	proxiesIndex := -1
 	for i, header := range headers {
 		if header == "Proxies" {
@@ -165,10 +158,10 @@ func EnsureProxyFile() {
 		}
 	}
 	if proxiesIndex == -1 {
-		Log(Logger, logrus.ErrorLevel,  "Error: no \"Proxies\" column found in data file")
+		Log(Logger, logrus.ErrorLevel, "Error: no \"Proxies\" column found in data file")
 		return
 	}
-	
+
 	// Read each row and extract the proxies
 	for {
 		record, err := r.Read()
@@ -176,7 +169,7 @@ func EnsureProxyFile() {
 			break
 		}
 		if err != nil {
-			Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error reading data file row: %v.", err))
+			Log(Logger, logrus.ErrorLevel, fmt.Sprintf("Error reading data file row: %v.", err))
 			return
 		}
 		if len(record) > proxiesIndex {
@@ -189,10 +182,10 @@ func EnsureProxyFile() {
 	}
 }
 
-func EnsureCaptchaKey()  ([]string, error) {
+func EnsureCaptchaKey() ([]string, error) {
 	file, err := os.Open("captcha_key.txt")
 	if err != nil {
-		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("Error reading txt file: %v.", err))
+		Log(Logger, logrus.ErrorLevel, fmt.Sprintf("Error reading txt file: %v.", err))
 		return nil, err
 	}
 	defer file.Close()
@@ -213,30 +206,28 @@ func EnsureCaptchaKey()  ([]string, error) {
 }
 
 func (f *CustomFormatter) Format(entry *logrus.Entry) ([]byte, error) {
-    var color int
-    switch entry.Level {
-    case logrus.InfoLevel:
-        color = 32 // Green
-    case logrus.WarnLevel:
-        color = 34 // Yellow
-    case logrus.ErrorLevel, logrus.FatalLevel, logrus.PanicLevel:
-        color = 31 // Red
-    default:
-        color = 0 // Default color
-    }
+	var color int
+	switch entry.Level {
+	case logrus.InfoLevel:
+		color = 32 // Green
+	case logrus.WarnLevel:
+		color = 34 // Yellow
+	case logrus.ErrorLevel, logrus.FatalLevel, logrus.PanicLevel:
+		color = 31 // Red
+	default:
+		color = 0 // Default color
+	}
 
-    message := fmt.Sprintf("[%s] %s\n", entry.Time.Format("15:04:05"), entry.Message)
-    return []byte("\x1b[" + fmt.Sprintf("%d", color) + "m" + message + "\x1b[0m"), nil
+	message := fmt.Sprintf("[%s] %s\n", entry.Time.Format("15:04:05"), entry.Message)
+	return []byte("\x1b[" + fmt.Sprintf("%d", color) + "m" + message + "\x1b[0m"), nil
 }
-
-
 
 func ExtractTime(input string) (int, error) {
 	re := regexp.MustCompile(`(\d+)h\s*(\d+)m\s*(\d+)s`)
 	submatches := re.FindStringSubmatch(input)
 
 	if len(submatches) != 4 {
-		Log(Logger, logrus.ErrorLevel,  fmt.Sprintf("No time duration found in input: %s\n", input))
+		Log(Logger, logrus.ErrorLevel, fmt.Sprintf("No time duration found in input: %s\n", input))
 		return 0, nil
 	}
 
@@ -244,8 +235,7 @@ func ExtractTime(input string) (int, error) {
 	minutes, _ := strconv.Atoi(submatches[2])
 	seconds, _ := strconv.Atoi(submatches[3])
 	// var totalSeconds = 60
-	var totalSeconds = hours * 60 * 60 + minutes * 60 + seconds
-	
+	var totalSeconds = hours*60*60 + minutes*60 + seconds
 
-    return totalSeconds, nil
+	return totalSeconds, nil
 }
